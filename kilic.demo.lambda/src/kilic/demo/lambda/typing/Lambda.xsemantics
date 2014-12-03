@@ -1,0 +1,91 @@
+system kilic.demo.lambda.typing.LambdaTypeSystem
+
+validatorExtends AbstractLambdaValidator
+
+import kilic.demo.lambda.validation.AbstractLambdaValidator
+import kilic.demo.lambda.lambda.Term
+import kilic.demo.lambda.lambda.Type
+import kilic.demo.lambda.lambda.Parameter
+import kilic.demo.lambda.lambda.Constant
+import kilic.demo.lambda.lambda.Program
+import kilic.demo.lambda.lambda.Abstraction
+import kilic.demo.lambda.lambda.BasicType
+import kilic.demo.lambda.lambda.Variable
+import kilic.demo.lambda.lambda.Application
+import kilic.demo.lambda.lambda.ArrowType
+
+inject LambdaUtils utils
+
+judgments {
+	type |- Term term : output Type
+
+	expect |~ Term expression |> Type expectedType
+		error "term and type mismatch : " + stringRep(expression) + "-" + stringRep(expectedType) 
+        source expression
+
+	paramtype |~ Parameter param : output Type
+}
+
+axiom TConstant
+	G |- Constant c : utils.createBasicType(c.letter)
+	
+axiom TParameter
+	G |~ Parameter p : p.type
+
+rule TVariable
+	G |- Variable v : Type t
+from {
+	G |~ v.ref : t
+}
+	
+rule TAbstraction
+	G |- Abstraction a : ArrowType t
+from {
+	G |- a.term : var Type termType
+	t = utils.createArrowType(a.param.type,termType)
+}
+
+rule TApplication
+	G |- Application a : Type t
+from {
+	G |- a.fun : var Type funType
+	{ funType instanceof ArrowType } or fail error "expected arrow type" source a.fun
+	
+	G |~ a.arg |> (funType as ArrowType).left
+	t = (funType as ArrowType).right
+}
+
+rule EConstant
+	G |~ Constant c |> BasicType expected
+from {
+	G |- c : var Type t
+	utils.equals(t, expected)
+}
+
+rule EVariable
+	G |~ Variable v |> Type expected
+from {
+	G |- v : var Type t
+	utils.equals(t, expected)
+}
+	
+rule EAbstraction
+	G |~ Abstraction a |> ArrowType expected
+from {
+	G |- a : var ArrowType t
+	utils.equals(t, expected)
+}
+
+rule EApplication
+	G |~ Application a |> Type expected
+from {
+	G |- a : var Type t
+	utils.equals(t, expected)
+}
+
+checkrule CheckApplication for
+	Program program
+from {
+	// if we can type the program term
+	empty |- program.term : var Type type
+}
