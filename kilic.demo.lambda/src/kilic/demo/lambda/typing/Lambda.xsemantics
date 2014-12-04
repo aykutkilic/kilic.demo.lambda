@@ -20,7 +20,7 @@ judgments {
 	type |- Term term : output Type
 
 	expect |~ Term expression |> Type expectedType
-		error "term and type mismatch : " + stringRep(expression) + "-" + stringRep(expectedType) 
+		error "term and type mismatch : " + stringRep(type(expression)) + "-" + stringRep(expectedType) 
         source expression
 
 	paramtype |~ Parameter param : output Type
@@ -30,29 +30,31 @@ axiom TConstant
 	G |- Constant c : utils.createBasicType(c.letter)
 	
 axiom TParameter
-	G |~ Parameter p : p.type
+	G |~ Parameter p : p.paramType.clone
 
 rule TVariable
-	G |- Variable v : Type t
-from {
-	G |~ v.ref : t
-}
+	G |- Variable v : Type t from {	G |~ v.ref : t }
 	
 rule TAbstraction
 	G |- Abstraction a : ArrowType t
 from {
 	G |- a.term : var Type termType
-	t = utils.createArrowType(a.param.type,termType)
+	t = utils.createArrowType( a.param.paramType, termType )
 }
 
 rule TApplication
 	G |- Application a : Type t
 from {
 	G |- a.fun : var Type funType
-	{ funType instanceof ArrowType } or fail error "expected arrow type" source a.fun
+	{ funType instanceof ArrowType } or fail error "TAPP: expected arrow type but got " + stringRep(funType) source a.fun
+	var tleft = (funType as ArrowType).left
+	var tright = (funType as ArrowType).right
 	
-	G |~ a.arg |> (funType as ArrowType).left
-	t = (funType as ArrowType).right
+	G |- a.arg : var Type argType
+	utils.equals(tleft, argType)
+	or fail error "TAPP: should be " + tleft.stringRep + " but is " + argType.stringRep source a.arg 
+	
+	t = tright
 }
 
 rule EConstant
@@ -70,8 +72,9 @@ from {
 }
 	
 rule EAbstraction
-	G |~ Abstraction a |> ArrowType expected
+	G |~ Abstraction a |> Type expected
 from {
+	{ expected instanceof ArrowType } or fail error "expected arrow type but got " + stringRep(expected) source expected
 	G |- a : var ArrowType t
 	utils.equals(t, expected)
 }

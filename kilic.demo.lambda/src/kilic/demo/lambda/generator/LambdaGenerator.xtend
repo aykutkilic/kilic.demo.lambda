@@ -3,9 +3,23 @@
  */
 package kilic.demo.lambda.generator
 
+import com.google.inject.Inject
+import it.xsemantics.runtime.RuleApplicationTrace
+import it.xsemantics.runtime.StringRepresentation
+import it.xsemantics.runtime.TraceUtils
+import kilic.demo.lambda.lambda.Abstraction
+import kilic.demo.lambda.lambda.Application
+import kilic.demo.lambda.lambda.ArrowType
+import kilic.demo.lambda.lambda.BasicType
+import kilic.demo.lambda.lambda.Constant
+import kilic.demo.lambda.lambda.Parameter
+import kilic.demo.lambda.lambda.Program
+import kilic.demo.lambda.lambda.Term
+import kilic.demo.lambda.lambda.Variable
+import kilic.demo.lambda.typing.LambdaTypeSystem
 import org.eclipse.emf.ecore.resource.Resource
-import org.eclipse.xtext.generator.IGenerator
 import org.eclipse.xtext.generator.IFileSystemAccess
+import org.eclipse.xtext.generator.IGenerator
 
 /**
  * Generates code from your model files on save.
@@ -13,12 +27,52 @@ import org.eclipse.xtext.generator.IFileSystemAccess
  * see http://www.eclipse.org/Xtext/documentation.html#TutorialCodeGeneration
  */
 class LambdaGenerator implements IGenerator {
+	@Inject LambdaTypeSystem ts
+	@Inject extension TraceUtils
+	@Inject extension StringRepresentation
 	
+	def compileType( Term t ) {
+		val typeTrace = new RuleApplicationTrace()
+		val type = ts.type(null, typeTrace, t)
+		'''
+		type  : «type.value.string»
+		trace : «typeTrace.traceAsString»
+		'''
+	}
+	
+	dispatch def String compile(Abstraction a) {
+		'''
+		l«a.param?.compile»
+			«a.term?.compile»
+		'''
+	}
+	
+	dispatch def String compile(Parameter p) {
+		val type = ts.paramtype(p)
+		'''«p.name» : «IF p.paramType!=null»«p.paramType.compile»«ELSE»??«ENDIF» («type.value»)'''
+	}
+	
+	dispatch def String compile(Application a) {
+		'''(«a.fun?.compile» «a.arg?.compile»)'''
+	}
+	
+	dispatch def String compile(Variable v) {
+		v.ref?.name
+	}
+	
+	dispatch def String compile(Constant c) {
+		c.letter
+	}
+	
+	dispatch def String compile(BasicType t) {
+		t.letter
+	}
+	
+	dispatch def String compile(ArrowType t){
+		'''(«t.left?.compile»->«t.right?.compile»)'''
+	}
+	 
 	override void doGenerate(Resource resource, IFileSystemAccess fsa) {
-//		fsa.generateFile('greetings.txt', 'People to greet: ' + 
-//			resource.allContents
-//				.filter(typeof(Greeting))
-//				.map[name]
-//				.join(', '))
+		resource.allContents.filter(Program).forEach[System.out.println(compile(it.term))]
 	}
 }

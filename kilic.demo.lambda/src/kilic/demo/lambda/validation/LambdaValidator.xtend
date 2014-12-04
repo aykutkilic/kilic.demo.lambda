@@ -3,9 +3,10 @@
  */
 package kilic.demo.lambda.validation
 
+import kilic.demo.lambda.lambda.LambdaPackage
+import kilic.demo.lambda.lambda.Parameter
 import kilic.demo.lambda.typing.validation.LambdaTypeSystemValidator
-
-//import org.eclipse.xtext.validation.Check
+import org.eclipse.xtext.validation.Check
 
 /**
  * Custom validation rules. 
@@ -13,15 +14,10 @@ import kilic.demo.lambda.typing.validation.LambdaTypeSystemValidator
  * see http://www.eclipse.org/Xtext/documentation.html#validation
  */
 class LambdaValidator extends LambdaTypeSystemValidator {
-
-//  public static val INVALID_NAME = 'invalidName'
-//
-//	@Check
-//	def checkGreetingStartsWithCapital(Greeting greeting) {
-//		if (!Character.isUpperCase(greeting.name.charAt(0))) {
-//			warning('Name should start with a capital', 
-//					MyDslPackage.Literals.GREETING__NAME,
-//					INVALID_NAME)
-//		}
-//	}
+	@Check
+	def void checkParam(Parameter p) {
+		if(p.paramType==null) {
+			warning('param type is null',p, LambdaPackage.Literals.PARAMETER__PARAM_TYPE)
+		}
+	}
 }

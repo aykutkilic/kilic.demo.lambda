@@ -3,8 +3,7 @@
 */
 package kilic.demo.lambda.ui.labeling
 
-import kilic.demo.lambda.lambda.Abstraction
-import kilic.demo.lambda.lambda.Application
+import org.eclipse.xtext.ui.label.DefaultDescriptionLabelProvider
 
 //import org.eclipse.xtext.resource.IEObjectDescription
 
@@ -13,17 +12,8 @@ import kilic.demo.lambda.lambda.Application
  * 
  * see http://www.eclipse.org/Xtext/documentation.html#labelProvider
  */
-class LambdaDescriptionLabelProvider extends org.eclipse.xtext.ui.label.DefaultDescriptionLabelProvider {
+class LambdaDescriptionLabelProvider extends DefaultDescriptionLabelProvider {
 
-	// Labels and icons can be computed like this:
-	def text(Abstraction a) {
-		'''l«a.param.name» : «a.param.type»'''
-	}
-	
-	def text(Application a) {
-		'''apply'''
-	}
-	
 //	override text(IEObjectDescription ele) {
 //		ele.name.toString
 //	}

@@ -15,7 +15,7 @@ Constant: letter=LOWERCASE;
 Variable: ref=[Parameter|PARAMNAME];
 
 Abstraction:	'l' param=Parameter '.' term=Term;
-Parameter:		name=PARAMNAME ':' type=Type;
+Parameter:		name=PARAMNAME ':' paramType=Type;
 
 // right associative
 Type:	TerminalType ({ArrowType.left = current} '->' right=Type)?;
