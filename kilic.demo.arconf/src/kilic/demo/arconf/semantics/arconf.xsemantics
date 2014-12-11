@@ -1,0 +1,167 @@
+import kilic.demo.arconf.validation.AbstractARConfValidator
+import kilic.demo.arconf.aRConf.TypeDef
+import kilic.demo.arconf.aRConf.Value
+import kilic.demo.arconf.aRConf.Multiplicity
+import kilic.demo.arconf.aRConf.StringVal
+import kilic.demo.arconf.aRConf.IntegerVal
+import kilic.demo.arconf.aRConf.BoolVal
+import kilic.demo.arconf.aRConf.RefVal
+import kilic.demo.arconf.aRConf.BasicItemDef
+import kilic.demo.arconf.aRConf.SingleModuleVal
+import kilic.demo.arconf.aRConf.ModuleDef
+import kilic.demo.arconf.aRConf.ContainerDef
+import kilic.demo.arconf.aRConf.SingleContainerVal
+import kilic.demo.arconf.aRConf.ListBasicVal
+import kilic.demo.arconf.aRConf.ModuleAsg
+import kilic.demo.arconf.aRConf.ContainerAsg
+import kilic.demo.arconf.aRConf.ContainerValMember
+import kilic.demo.arconf.aRConf.BasicAsg
+import kilic.demo.arconf.aRConf.RefDef
+
+system kilic.demo.arconf.semantics.ARConfSemantics
+
+validatorExtends AbstractARConfValidator
+inject ARConfUtils utils
+
+judgments {
+	type |- Value v : output TypeDef
+		error "Cannot Type" source v
+		
+	expect |> Value v : TypeDef t
+		error "Expected " + utils.typename(t) source v
+	
+	subtype |- TypeDef t1 <: TypeDef t2
+		error "Type mismatch " + utils.typename(t1) + "<:" + utils.typename(t2)
+	
+	count ||- Value v : output Integer
+		error "Cannot count" source v
+		
+	expectCount ||> Value v : TypeDef t
+		error "Expected # " + t.mul.stringRep source v
+		
+	multiplicity ||- Integer i <: Multiplicity m
+		error "Count mismatch " + i + "<:" + m.stringRep
+}
+
+axiom TString 	G |- StringVal v  : utils.createBasicItemDef("string")
+axiom TInteger 	G |- IntegerVal v : utils.createBasicItemDef("int")
+axiom TBool 	G |- BoolVal v    : utils.createBasicItemDef("bool")
+axiom TRef 		G |- RefVal v 	  : v.container.type
+
+rule  SBasic 	G |- BasicItemDef b1 <: BasicItemDef b2 
+from { 
+	b1.type.equals(b2.type)
+}
+
+rule SContainer G |- ContainerDef c1 <: ContainerDef c2
+from { 
+	c1==c2
+}
+
+rule EModuleVal
+	G |> SingleModuleVal v : ModuleDef t
+from {
+	v.containers.forEach[ G |> it.value : it.type ]
+}
+
+rule CModuleVal
+	G ||> SingleModuleVal v : ModuleDef t
+from {
+	v.containers.forEach[ G ||> it.value : it.type ]
+}
+
+rule EContainerVal
+	G |> SingleContainerVal v : ContainerDef t
+from {
+	v.members.forEach[ G |> it.value : it.type ]
+}
+
+rule CContainerVal
+	G ||> SingleContainerVal v : ContainerDef t
+from {
+	for(TypeDef m : t.members ) {
+		// if it can't be zero
+		if(!utils.expectMultiplicity(m.mul, 0)) {
+			var related = v.members.filter[it.type == m]
+			related.size>0
+			or fail error "Missing element " + m.name source v
+		}
+	}
+	v.members.forEach[ G ||> it.value : it.type ]
+}
+
+rule EListBasicVal
+	G |> ListBasicVal l : TypeDef t
+from {
+	l.items.forEach[ G |> it : t ]
+}
+
+rule CListBasicVal
+	G ||> ListBasicVal l : TypeDef t
+from {
+	G ||- l.items.size <: t.mul
+}
+
+rule ERefDef
+	G |> RefVal v : RefDef t
+from {
+	G |- v.container.type <: t.container	
+}
+	
+rule EFallback
+	G |> Value v : TypeDef t
+from {
+	G |- v : var TypeDef t2
+	G |- t2 <: t
+}
+
+rule CFallback
+	G ||> Value v : TypeDef t
+from {
+	G ||- v : var Integer size
+	G ||- size <: t.mul
+}
+
+axiom CString	G ||- StringVal  v : 1
+axiom CInteger  G ||- IntegerVal v : 1
+axiom CBool		G ||- BoolVal    v : 1
+axiom CRef		G ||- RefVal     v : 1
+axiom CModVal   G ||- SingleModuleVal v : 1
+axiom CConVal   G ||- SingleContainerVal v : 1
+rule  CBasic	G ||- Integer i <: Multiplicity mul
+from {
+	utils.expectMultiplicity(mul, i)
+}
+
+checkrule CheckModules for ModuleAsg a
+from {
+	empty |> a.value : a.type
+	empty ||> a.value : a.type
+}
+
+checkrule CheckContainers for ContainerAsg a
+from {
+	val v = a.value
+	val t = a.type
+	
+	empty |>  v : t
+	empty ||> v : t
+}
+
+checkrule CheckMultipleDefs for ContainerValMember m
+from {
+	val c = m.eContainer
+	val l = switch(c) {
+		SingleContainerVal: c.members
+		SingleModuleVal:    c.containers
+	}
+	var count = l.filter[utils.name(it).equals(utils.name(m))].size
+	count <= 1
+	or fail error "multiple definitions " + count source m
+}
+
+checkrule CheckBasicVals for BasicAsg a
+from {
+	empty |> a.value : a.type
+	empty ||> a.value : a.type
+}

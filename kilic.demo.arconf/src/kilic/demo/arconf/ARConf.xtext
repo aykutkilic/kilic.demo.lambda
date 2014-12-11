@@ -1,0 +1,93 @@
+grammar kilic.demo.arconf.ARConf with org.eclipse.xtext.common.Terminals
+
+generate aRConf "http://www.demo.kilic/arconf/ARConf"
+
+Repository:
+	'repository' name=FQN
+	( modules+=ModuleDef | values+=ModuleAsg )*;
+
+ModuleDef returns TypeDef:
+	{ModuleDef}
+	'module' mul=Multiplicity name=ID '{'
+		containers += ContainerDef*
+	'}';
+	
+ContainerDef returns ContainerMember:
+	{ContainerDef}
+	'container' mul=Multiplicity name=ID '{'
+		(members+=ContainerMember ';')*
+	'}';
+	
+ContainerMember returns TypeDef:
+	ContainerDef | RefDef | ChoiceRefDef | BasicItemDef;
+	
+RefDef returns ContainerMember:
+	{RefDef}
+	'ref' '<' container=[ContainerDef|FQN]'>' mul=Multiplicity name=ID;
+	
+FQN: ID ('.' ID)*;
+
+ChoiceRefDef returns ContainerMember:
+	{ChoiceRefDef}
+	'choice-ref'
+	'<' containers+=[ContainerDef|FQN] (',' containers+=[ContainerDef|FQN]) '>'
+	mul=Multiplicity name=ID;
+	
+BasicItemDef returns ContainerMember:
+	{BasicItemDef}
+	type=('float'|'int'|'bool'|'string') mul=Multiplicity name=ID;
+
+Multiplicity:
+	{One} 			|
+	{Optional}	'?'	|
+	{OneOrMore}	'+'	|
+	{Any}		'*'	|
+	{Range}		'[' from=INT '..' to=INT ']' |
+	{Fixed}		'[' count=INT ']';
+
+ModuleAsg:
+	type=[ModuleDef] name=ID? '=' value=ModuleVal;
+	
+ModuleVal returns Value:
+	SingleModuleVal | ListModuleVal;
+	
+SingleModuleVal returns Value:
+	{SingleModuleVal}
+	'{' containers+=ContainerAsg* '}';
+	
+ListModuleVal returns Value:
+	{ListModuleVal}
+	'[' items +=SingleModuleVal* ']';
+	
+ContainerAsg:
+	type=[ContainerDef|FQN] name=ID? '=' value=ContainerVal;
+	
+ContainerVal returns Value:
+	SingleContainerVal | ListContainerVal;
+	
+SingleContainerVal returns Value:
+	{SingleContainerVal}
+	'{' members+=ContainerValMember* '}';
+
+ListContainerVal returns Value:
+	{ListContainerVal}
+	'[' items += SingleContainerVal* ']';
+
+ContainerValMember:
+	BasicAsg | ContainerAsg;
+	
+BasicAsg:
+	type=[ContainerMember] name=ID? ':' value=BasicVal;
+
+BasicVal returns Value:
+	SingleBasicVal | ListBasicVal;
+	
+SingleBasicVal returns Value:
+	{StringVal}		val=STRING 	|
+	{IntegerVal}	val=INT		|
+	{BoolVal}		val=('on'|'off'|'true'|'false') |
+	{RefVal}		container=[ContainerAsg|FQN];
+
+ListBasicVal returns Value:
+	{ListBasicVal}
+	'[' items+=SingleBasicVal* ']';
